@@ -35,16 +35,6 @@ if it isn't grounded in the retrieved context.
 At its core, the graph is a single loop: fetch context, generate an answer,
 grade it, and retry until it's actually useful.
 
-```mermaid
-flowchart TD
-    start([start]) --> route[route question]
-    route --> fetch[fetch from source]
-    fetch --> generate[generate answer]
-    generate --> grade{grade: grounded &<br/>relevant?}
-    grade -->|yes| end_([end])
-    grade -->|no, retry ≤ 3| generate
-```
-
 Underneath `route` and `fetch`, the graph branches across four backends:
 
 ```mermaid
