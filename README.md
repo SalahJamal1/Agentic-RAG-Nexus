@@ -32,6 +32,8 @@ if it isn't grounded in the retrieved context.
 
 ## How it works
 
+> A polished, editable version of this diagram: [EXODUS Pipeline](https://claude.ai/code/artifact/2ec56012-9fdf-40cb-b5eb-666db6456edc)
+
 ```mermaid
 flowchart TD
     Start([Question]) --> Router{{Router}}
