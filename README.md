@@ -9,29 +9,40 @@ if it isn't grounded in the retrieved context.
 
 ```mermaid
 flowchart TD
-    Start([Question]) --> Router{Router}
+    Start([Question]) --> Router{{Router}}
 
-    Router -->|general| General[General chat]
-    General --> End([Answer])
+    Router -- general --> General[General chat]
+    General --> Answer([Answer])
 
-    Router -->|Rag / Mysql / Google Drive / Github| Source
+    Router -- Rag --> RAG[RAG retriever]
+    Router -- Mysql --> MYSQL[MySQL notes]
+    Router -- "Google Drive" --> DRIVE[Google Drive]
+    Router -- Github --> GITHUB[GitHub repo]
 
-    subgraph Source[Fetch from source]
-        direction LR
-        RAG[RAG retriever]
-        MYSQL[MySQL notes]
-        DRIVE[Google Drive]
-        GITHUB[GitHub repo]
-    end
+    MYSQL -. no docs .-> DRIVE
+    DRIVE -. no docs .-> GITHUB
+    GITHUB -. no docs .-> RAG
+    RAG -. no docs .-> MYSQL
 
-    Source --> Decide{Documents found?}
-    Decide -->|no, try next untried source<br/>Mysql → Google Drive → Github → Rag| Source
-    Decide -->|yes| Grade[Grade documents]
+    RAG -- docs found --> Grade[Grade documents]
+    MYSQL -- docs found --> Grade
+    DRIVE -- docs found --> Grade
+    GITHUB -- docs found --> Grade
 
     Grade --> Generate[Generate answer]
-    Generate --> Check{Grounded & relevant?}
-    Check -->|no, retry ≤ 3| Generate
-    Check -->|yes| End
+    Generate --> Check{Grounded &<br/>relevant?}
+    Check -- "no, retry ≤ 3" --> Generate
+    Check -- yes --> Answer
+
+    classDef terminal fill:#6366f1,stroke:#4338ca,color:#fff
+    classDef decision fill:#f59e0b,stroke:#b45309,color:#1f2937
+    classDef source fill:#0ea5e9,stroke:#0369a1,color:#fff
+    classDef action fill:#10b981,stroke:#047857,color:#fff
+
+    class Start,Answer terminal
+    class Router,Check decision
+    class RAG,MYSQL,DRIVE,GITHUB source
+    class General,Grade,Generate action
 ```
 
 1. **Route** — an LLM classifies the question into `Rag`, `Mysql`,
