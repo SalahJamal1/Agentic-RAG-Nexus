@@ -32,44 +32,38 @@ if it isn't grounded in the retrieved context.
 
 ## How it works
 
-> A polished, editable version of this diagram: [EXODUS Pipeline](https://claude.ai/code/artifact/2ec56012-9fdf-40cb-b5eb-666db6456edc)
+At its core, the graph is a single loop: fetch context, generate an answer,
+grade it, and retry until it's actually useful.
 
 ```mermaid
 flowchart TD
-    Start([Question]) --> Router{{Router}}
+    start([start]) --> route[route question]
+    route --> fetch[fetch from source]
+    fetch --> generate[generate answer]
+    generate --> grade{grade: grounded &<br/>relevant?}
+    grade -->|yes| end_([end])
+    grade -->|no, retry ≤ 3| generate
+```
 
-    Router -- general --> General[General chat]
-    General --> Answer([Answer])
+Underneath `route` and `fetch`, the graph branches across four backends:
 
-    Router -- Rag --> RAG[RAG retriever]
-    Router -- Mysql --> MYSQL[MySQL notes]
-    Router -- "Google Drive" --> DRIVE[Google Drive]
-    Router -- Github --> GITHUB[GitHub repo]
+```mermaid
+flowchart TD
+    route{{route}} -- general --> chat[general chat]
+    route -- Rag --> rag[RAG retriever]
+    route -- Mysql --> mysql[MySQL notes]
+    route -- "Google Drive" --> drive[Google Drive]
+    route -- Github --> github[GitHub repo]
 
-    MYSQL -. no docs .-> DRIVE
-    DRIVE -. no docs .-> GITHUB
-    GITHUB -. no docs .-> RAG
-    RAG -. no docs .-> MYSQL
+    mysql -. no docs .-> drive
+    drive -. no docs .-> github
+    github -. no docs .-> rag
+    rag -. no docs .-> mysql
 
-    RAG -- docs found --> Grade[Grade documents]
-    MYSQL -- docs found --> Grade
-    DRIVE -- docs found --> Grade
-    GITHUB -- docs found --> Grade
-
-    Grade --> Generate[Generate answer]
-    Generate --> Check{Grounded &<br/>relevant?}
-    Check -- "no, retry ≤ 3" --> Generate
-    Check -- yes --> Answer
-
-    classDef terminal fill:#6366f1,stroke:#4338ca,color:#fff
-    classDef decision fill:#f59e0b,stroke:#b45309,color:#1f2937
-    classDef source fill:#0ea5e9,stroke:#0369a1,color:#fff
-    classDef action fill:#10b981,stroke:#047857,color:#fff
-
-    class Start,Answer terminal
-    class Router,Check decision
-    class RAG,MYSQL,DRIVE,GITHUB source
-    class General,Grade,Generate action
+    rag -- docs found --> next[grade docs / generate]
+    mysql -- docs found --> next
+    drive -- docs found --> next
+    github -- docs found --> next
 ```
 
 1. **Route** — an LLM classifies the question into `Rag`, `Mysql`,
@@ -80,12 +74,12 @@ flowchart TD
    documents, `decide()` falls through to the next untried source in the
    order `Mysql → Google Drive → Github → Rag`, so a question routed to the
    wrong place still has a chance to find an answer.
-4. **Grade** — each retrieved document is scored for relevance to the
+4. **Grade docs** — each retrieved document is scored for relevance to the
    question; irrelevant ones are dropped.
 5. **Generate** — an answer is produced from the surviving context.
-6. **Check** — the answer is graded for hallucination (is it grounded in the
-   context?) and relevance (does it answer the question?). If either check
-   fails, generation is retried, up to 3 times.
+6. **Grade (check)** — the answer is graded for hallucination (is it
+   grounded in the context?) and relevance (does it answer the question?).
+   If either check fails, generation is retried, up to 3 times.
 
 ## Stack
 
@@ -108,20 +102,25 @@ Create a `.env` in the project root:
 GITHUB_TOKEN=your_github_personal_access_token
 ```
 
-**Ollama**: install it and pull the models used by the graph:
+### Ollama
+
+Install it, then pull the models used by the graph:
 
 ```bash
 ollama pull qwen3:1.7b
 ollama pull nomic-embed-text
 ```
 
-**MySQL**: a local server is expected at `localhost:3306`. Connection
-details currently live in `app/database.py` — update them to match your
-setup.
+### MySQL
 
-**Google Drive**: put an OAuth client secret file at `credentials.json`
-(from the Google Cloud Console, Drive API enabled). The first Drive query
-opens a browser to authorize and writes the resulting token to `token.json`.
+A local server is expected at `localhost:3306`. Connection details
+currently live in `app/database.py` — update them to match your setup.
+
+### Google Drive
+
+Put an OAuth client secret file at `credentials.json` (from the Google
+Cloud Console, Drive API enabled). The first Drive query opens a browser
+to authorize and writes the resulting token to `token.json`.
 
 ## Run
 
@@ -140,12 +139,13 @@ uv run python -m graph.rag.ingestion
 
 ## Known limitations
 
-- `app/database.py` has hardcoded MySQL credentials and connects at import
-  time — move these to environment variables before deploying anywhere
-  shared.
-- `app/main.py` (a FastAPI entry point for the `notes` API) is not yet
-  implemented.
-- The GitHub/Google Drive/MySQL "MCP servers" are called as plain in-process
-  Python functions rather than over MCP; the standalone
-  `mcp.run(transport="http", ...)` entry points in `graph/mcp/*.py` aren't
-  currently used by the graph.
+> [!WARNING]
+> - `app/database.py` has hardcoded MySQL credentials and connects at
+>   import time — move these to environment variables before deploying
+>   anywhere shared.
+> - `app/main.py` (a FastAPI entry point for the `notes` API) is not yet
+>   implemented.
+> - The GitHub/Google Drive/MySQL "MCP servers" are called as plain
+>   in-process Python functions rather than over MCP; the standalone
+>   `mcp.run(transport="http", ...)` entry points in `graph/mcp/*.py`
+>   aren't currently used by the graph.
