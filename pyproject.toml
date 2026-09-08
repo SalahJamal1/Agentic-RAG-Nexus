@@ -1,0 +1,45 @@
+[project]
+name = "agentic-rag-nexus"
+version = "0.1.0"
+description = "A LangGraph agent that routes questions across RAG, MySQL, Google Drive, and GitHub sources"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "aiofiles>=25.1.0",
+    "bcrypt>=5.0.0",
+    "beautifulsoup4>=4.15.0",
+    "black>=26.5.1",
+    "cryptography>=50.0.1",
+    "fastapi>=0.141.1",
+    "fastmcp>=4.0.3",
+    "google-api-python-client>=2.200.0",
+    "google-auth-httplib2>=0.4.2",
+    "google-auth-oauthlib>=1.4.1",
+    "httpx>=0.28.1",
+    "isort>=9.0.1",
+    "jinja2>=3.1.6",
+    "langchain>=1.4.0",
+    "langchain-chroma>=1.1.0",
+    "langchain-classic>=1.0.8",
+    "langchain-community>=0.4.2",
+    "langchain-mcp-adapters>=0.3.1",
+    "langchain-ollama>=1.1.0",
+    "langchain-openai>=1.6.0",
+    "langchain-pinecone>=0.2.13",
+    "langchain-tavily>=0.2.18",
+    "langchainhub>=0.1.21",
+    "langgraph>=1.2.11",
+    "mcp>=2.1.1",
+    "passlib>=1.7.4",
+    "psycopg2-binary>=2.9.12",
+    "pymysql>=1.2.0",
+    "pypdf>=6.17.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "python-dotenv>=1.2.3",
+    "python-jose>=3.5.0",
+    "python-multipart>=0.0.32",
+    "sqlalchemy>=2.0.52",
+    "starlette>=1.6.0",
+    "uvicorn>=0.52.4",
+]
