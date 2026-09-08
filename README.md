@@ -1,4 +1,29 @@
-# Agentic RAG Nexus
+```
+    ___   _____________   __________________   ____  ___   ______
+   /   | / ____/ ____/ | / /_  __/  _/ ____/  / __ \/   | / ____/
+  / /| |/ / __/ __/ /  |/ / / /  / // /      / /_/ / /| |/ / __
+ / ___ / /_/ / /___/ /|  / / / _/ // /___   / _, _/ ___ / /_/ /
+/_/  |_\____/_____/_/ |_/ /_/ /___/\____/  /_/ |_/_/  |_\____/
+
+    _   _________  ____  _______
+   / | / / ____/ |/ / / / / ___/
+  /  |/ / __/  |   / / / /\__ \
+ / /|  / /___ /   / /_/ /___/ /
+/_/ |_/_____//_/|_\____//____/
+```
+
+<p align="center">
+  <em>One question in. The right answer out — no matter which system it's hiding in.</em>
+</p>
+
+<p align="center">
+  <img alt="LangGraph" src="https://img.shields.io/badge/LangGraph-state%20machine-6366f1?style=for-the-badge">
+  <img alt="Ollama" src="https://img.shields.io/badge/Ollama-local%20LLM-0ea5e9?style=for-the-badge">
+  <img alt="Chroma" src="https://img.shields.io/badge/Chroma-vector%20store-10b981?style=for-the-badge">
+  <img alt="Python" src="https://img.shields.io/badge/Python-3.13%2B-f59e0b?style=for-the-badge">
+</p>
+
+---
 
 A LangGraph agent that routes each question to whichever backend can actually
 answer it — a local RAG knowledge base, a MySQL notes table, Google Drive
