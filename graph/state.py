@@ -10,5 +10,6 @@ class GraphState(TypedDict):
     retry_count:NotRequired[int]
     question:NotRequired[str]
     documents:NotRequired[Annotated[list, operator.add]]
+    context:NotRequired[str]
     sources:NotRequired[list[str]]
 
