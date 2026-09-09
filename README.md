@@ -36,7 +36,6 @@ The graph routes a question to one or more backends in parallel, grades and
 merges what comes back, generates an answer, and grades that answer —
 re-routing and retrying until it's grounded or a retry limit is hit.
 
-<<<<<<< HEAD
 ```mermaid
 flowchart TD
     start([start]) --> route[route question]
@@ -53,9 +52,6 @@ flowchart TD
 
 Underneath `route` and `fetch`, the graph branches across four backends. A
 question can be routed to several of them at once:
-=======
-Underneath `route` and `fetch`, the graph branches across four backends:
->>>>>>> c0785f93f8149d8e699ed8354195490d1dd962ca
 
 ```mermaid
 flowchart TD
@@ -141,8 +137,11 @@ to authorize and writes the resulting token to `token.json`.
 uv run python main.py
 ```
 
-Starts an interactive CLI chat loop; type `quit` to exit. A diagram of the
-compiled graph is written to `graph.png` on exit.
+> [!NOTE]
+> As currently checked in, `main.py`'s interactive loop is commented out
+> (`# asyncio.run(main())`), so this only prints the compiled graph's Mermaid
+> source to stdout and exits — it does not chat or write a `graph.png`.
+> Uncomment that line to get the interactive CLI loop (type `quit` to exit).
 
 To index the sample web pages into the RAG vector store:
 
@@ -166,9 +165,8 @@ uv run python -m graph.rag.ingestion
 >   the `RECOVERY` node and its own conditional-edge routing function,
 >   calling the recovery LLM twice per recovery pass; its node-body return
 >   value (a `Send` or the string `GENERATE`) isn't a valid state update,
->   which raises `InvalidUpdateError`. It also reads `decision.datasource`
->   off `RouteQuery`, which only has a `datasources` (plural) field, so it
->   raises `AttributeError` before it can even get that far.
+>   which raises `InvalidUpdateError` the first time the graph takes the
+>   `recover` branch.
 > - `documents` in `GraphState` uses an `operator.add` reducer so parallel
 >   sources can fan their results into one list, but `grade_documents_node`
 >   also writes through that same key with only the filtered subset —
