@@ -39,37 +39,9 @@ re-routing and retrying until it's grounded or a retry limit is hit.
 Underneath `route` and `fetch`, the graph branches across four backends. A
 question can be routed to several of them at once:
 
-```mermaid
-flowchart TD
-    user([USER]) --> route{{ROUTER}}
-
-    route -->|General| chat[GENERAL CHAT]
-    chat --> end_([END])
-
-    route -->|Rag| rag[RAG RETRIEVER]
-    route -->|Mysql| mysql[MYSQL MCP SERVER]
-    route -->|Google Drive| drive[GOOGLE DRIVE MCP SERVER]
-    route -->|Github| github[GITHUB MCP SERVER]
-
-    rag --> grade[GRADE DOCUMENTS]
-    mysql --> grade
-    drive --> grade
-    github --> grade
-
-    grade --> generate[GENERATE]
-
-    generate --> hallucination{HALLUCINATION / ANSWER GRADER}
-
-    hallucination -->|Useful| end_([END])
-    hallucination -->|Regenerate| generate
-    hallucination -->|Recover| recovery{{RECOVERY ROUTER}}
-
-    recovery -->|Rag| rag
-    recovery -->|Mysql| mysql
-    recovery -->|Google Drive| drive
-    recovery -->|Github| github
-    recovery -->|Generate| generate
-```
+<p align="center">
+  <img src="mermaid-diagram.png" alt="Agentic Architecture" width="900">
+</p>
 
 
 1. **Route** — an LLM classifies the question into one or more of `Rag`,
