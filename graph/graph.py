@@ -1,4 +1,5 @@
 from dotenv import load_dotenv
+from langgraph.checkpoint.memory import MemorySaver
 
 load_dotenv()
 
@@ -142,4 +143,6 @@ workflow.add_edge(
 # COMPILE
 # =========================
 
-app = workflow.compile()
+memory=MemorySaver()
+
+app = workflow.compile(checkpointer=memory)
