@@ -36,36 +36,41 @@ The graph routes a question to one or more backends in parallel, grades and
 merges what comes back, generates an answer, and grades that answer —
 re-routing and retrying until it's grounded or a retry limit is hit.
 
-```mermaid
-flowchart TD
-    start([start]) --> route[route question]
-    route --> fetch["fetch from source(s)<br/>(parallel fan-out)"]
-    fetch --> grade_docs[grade documents]
-    grade_docs --> generate[generate answer]
-    generate --> grade{grounded &<br/>relevant?}
-    grade -->|yes| end_([end])
-    grade -->|not grounded| recover[recovery: re-route]
-    recover --> generate
-    grade -->|not relevant| generate
-    grade -->|3 retries reached| end_
-```
-
 Underneath `route` and `fetch`, the graph branches across four backends. A
 question can be routed to several of them at once:
 
 ```mermaid
 flowchart TD
-    route{{route}} -- general --> chat[general chat] --> end_([end])
-    route -- "Rag" --> rag[RAG retriever]
-    route -- "Mysql" --> mysql[MySQL notes]
-    route -- "Google Drive" --> drive[Google Drive]
-    route -- "Github" --> github[GitHub repo]
+    user([USER]) --> route{{ROUTER}}
 
-    rag --> next[grade docs]
-    mysql --> next
-    drive --> next
-    github --> next
+    route -->|General| chat[GENERAL CHAT]
+    chat --> end_([END])
+
+    route -->|Rag| rag[RAG RETRIEVER]
+    route -->|Mysql| mysql[MYSQL MCP SERVER]
+    route -->|Google Drive| drive[GOOGLE DRIVE MCP SERVER]
+    route -->|Github| github[GITHUB MCP SERVER]
+
+    rag --> grade[GRADE DOCUMENTS]
+    mysql --> grade
+    drive --> grade
+    github --> grade
+
+    grade --> generate[GENERATE]
+
+    generate --> hallucination{HALLUCINATION / ANSWER GRADER}
+
+    hallucination -->|Useful| end_([END])
+    hallucination -->|Regenerate| generate
+    hallucination -->|Recover| recovery{{RECOVERY ROUTER}}
+
+    recovery -->|Rag| rag
+    recovery -->|Mysql| mysql
+    recovery -->|Google Drive| drive
+    recovery -->|Github| github
+    recovery -->|Generate| generate
 ```
+
 
 1. **Route** — an LLM classifies the question into one or more of `Rag`,
    `Mysql`, `Google Drive`, `Github`, `General`. Multiple datasources are
@@ -148,28 +153,3 @@ To index the sample web pages into the RAG vector store:
 ```bash
 uv run python -m graph.rag.ingestion
 ```
-
-## Known limitations
-
-> [!WARNING]
-> - `app/database.py` has hardcoded MySQL credentials and connects at
->   import time — move these to environment variables before deploying
->   anywhere shared.
-> - `app/main.py` (a FastAPI entry point for the `notes` API) is not yet
->   implemented.
-> - The GitHub/Google Drive/MySQL "MCP servers" are called as plain
->   in-process Python functions rather than over MCP; the standalone
->   `mcp.run(transport="http", ...)` entry points in `graph/mcp/*.py`
->   aren't currently used by the graph.
-> - `recovery_node` (`graph/nodes/recovery_node.py`) is registered as both
->   the `RECOVERY` node and its own conditional-edge routing function,
->   calling the recovery LLM twice per recovery pass; its node-body return
->   value (a `Send` or the string `GENERATE`) isn't a valid state update,
->   which raises `InvalidUpdateError` the first time the graph takes the
->   `recover` branch.
-> - `documents` in `GraphState` uses an `operator.add` reducer so parallel
->   sources can fan their results into one list, but `grade_documents_node`
->   also writes through that same key with only the filtered subset —
->   this appends the filtered docs onto the unfiltered list rather than
->   replacing it, so documents accumulate (and duplicate) across grading
->   and recovery passes instead of shrinking to just the relevant ones.
