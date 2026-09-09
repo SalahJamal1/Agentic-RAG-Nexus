@@ -36,6 +36,7 @@ The graph routes a question to one or more backends in parallel, grades and
 merges what comes back, generates an answer, and grades that answer —
 re-routing and retrying until it's grounded or a retry limit is hit.
 
+<<<<<<< HEAD
 ```mermaid
 flowchart TD
     start([start]) --> route[route question]
@@ -52,6 +53,9 @@ flowchart TD
 
 Underneath `route` and `fetch`, the graph branches across four backends. A
 question can be routed to several of them at once:
+=======
+Underneath `route` and `fetch`, the graph branches across four backends:
+>>>>>>> c0785f93f8149d8e699ed8354195490d1dd962ca
 
 ```mermaid
 flowchart TD
