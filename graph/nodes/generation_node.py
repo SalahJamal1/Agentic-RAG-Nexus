@@ -8,4 +8,4 @@ def generation_node(state:GraphState)->GraphState:
     context=state["context"]
     retry_count=state.get("retry_count",0)+1
     generation=generation_chain.invoke({"question":question,"context":context})
-    return  {**state,"generation":generation,"retry_count":retry_count}
+    return  {"generation":generation,"retry_count":retry_count}

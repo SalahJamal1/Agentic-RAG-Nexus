@@ -7,18 +7,19 @@ from graph.state import llm
 
 
 class RouteQuery(BaseModel):
-    datasource: Literal[
-        "Rag",
-        "Mysql",
-        "Google Drive",
-        "Github",
-        "General",
+    datasources: list[
+        Literal[
+            "Rag",
+            "Mysql",
+            "Google Drive",
+            "Github",
+            "General",
+        ]
     ] = Field(
         description=(
-            "Choose exactly one datasource. "
-            "Use General for greetings, casual conversation, "
-            "simple general questions, or questions that do not "
-            "require information from Rag, Mysql, Google Drive, or Github."
+            "Choose one or more datasources required to answer the user's "
+            "question. Use multiple datasources when the question requires "
+            "combining, comparing, or merging information from multiple sources."
         )
     )
 
@@ -29,11 +30,16 @@ llm_with_structured = llm.with_structured_output(RouteQuery)
 system = """
 You are an expert query router for an AI assistant.
 
-Your job is to choose EXACTLY ONE datasource for the user's question.
+Your job is to choose the datasource or datasources required to answer
+the user's question.
+
+IMPORTANT:
+You can choose ONE or MULTIPLE datasources.
 
 Available datasources:
 
 1. Rag
+
 Use Rag when the answer can be found in the application's indexed
 knowledge-base documents.
 
@@ -44,7 +50,9 @@ Examples:
 - "Explain RAG."
 - "What is an AI agent?"
 
+
 2. Mysql
+
 Use Mysql when the question requires structured application/database
 information stored in MySQL.
 
@@ -55,7 +63,9 @@ Examples:
 - "Show me the latest notes."
 - "Find the user with email example@email.com."
 
+
 3. Google Drive
+
 Use Google Drive when the question requires searching or retrieving
 files stored in the user's Google Drive.
 
@@ -66,13 +76,24 @@ Examples:
 - "What does my CV say about my Python experience?"
 - "Find documents containing LangGraph."
 
+
 4. Github
+
 Use Github when the question requires information from GitHub repositories,
 code, issues, pull requests, commits, branches, or GitHub projects.
+
+Examples:
+- "Find my GitHub repositories."
+- "Search my repository for FastAPI."
+- "Find the authentication code in my GitHub project."
+- "Show me open issues in my repository."
+- "Search GitHub for LangGraph examples."
+
+
 5. General
 
-Use General when the user's message does not require any of the
-four specialized datasources.
+Use General when the question does not require information from
+the application's specialized datasources.
 
 Examples:
 - "Hi"
@@ -86,63 +107,74 @@ Examples:
 - "What is the capital of France?"
 - "What can you do?"
 
-General should also be used for casual conversation and simple
-questions that do not require the application's private data.
 
-IMPORTANT:
-If the question requires information from the application's
-knowledge base, use Rag.
+MULTI-SOURCE ROUTING:
 
-If the question requires MySQL data, use Mysql.
-
-If the question requires Google Drive files, use Google Drive.
-
-If the question requires GitHub data, use Github.
-
-Otherwise use General.
+If the user's question requires information from multiple datasources,
+return ALL required datasources.
 
 Examples:
-- "Find my GitHub repositories."
-- "Search my repository for FastAPI."
-- "Find the authentication code in my GitHub project."
-- "Show me open issues in my repository."
-- "Search GitHub for LangGraph examples."
+
+"Compare my GitHub README with my Google Drive CV."
+→ ["Github", "Google Drive"]
+
+"Compare my GitHub project with the notes stored in MySQL."
+→ ["Github", "Mysql"]
+
+"Compare my CV from Google Drive with my GitHub projects."
+→ ["Google Drive", "Github"]
+
+"Use my GitHub project and my Drive documents to explain my experience."
+→ ["Github", "Google Drive"]
+
+"Compare my notes in MySQL with the knowledge base."
+→ ["Mysql", "Rag"]
+
+"Find my CV in Google Drive."
+→ ["Google Drive"]
+
+"What is the status of order 123?"
+→ ["Mysql"]
+
+"What is LangGraph?"
+→ ["Rag"]
+
+"Hi"
+→ ["General"]
+
 
 IMPORTANT RULES:
 
-- Choose EXACTLY ONE datasource.
-- Do not choose multiple datasources.
-- Do not invent a datasource.
-- Choose the datasource that is MOST directly related to the question.
+1. Choose at least ONE datasource.
 
-Routing examples:
+2. Choose MULTIPLE datasources when the question explicitly requires
+   combining, comparing, or merging information from multiple sources.
 
-"What is prompt engineering?"
-→ Rag
+3. Do NOT choose every datasource by default.
 
-"Explain adversarial attacks."
-→ Rag
+4. Choose only the datasources actually required to answer the question.
 
-"What is LangGraph?"
-→ Rag
+5. If the question can be answered using one datasource, return only
+   that datasource.
 
-"What is the status of order 123?"
-→ Mysql
+6. If the question requires information from two or more datasources,
+   return all required datasources.
 
-"Show me my notes."
-→ Mysql
+7. General should normally be used alone.
 
-"Find my CV in Google Drive."
-→ Google Drive
+8. Do not invent a datasource.
 
-"Search my Drive for React.pdf."
-→ Google Drive
+9. The order of datasources should represent a reasonable retrieval order.
 
-"Find the authentication implementation in my GitHub repository."
-→ Github
+10. The router only decides WHERE to retrieve information from.
+    It does NOT retrieve the information itself.
 
-"Show me my GitHub repositories."
-→ Github
+After routing, the application will:
+1. Call the selected datasource tools.
+2. Collect the retrieved information.
+3. Merge the results into a shared context.
+4. Send the combined context to the LLM.
+5. Generate the final answer.
 """
 
 
@@ -152,5 +184,6 @@ prompt = ChatPromptTemplate.from_messages(
         ("human", "{question}"),
     ]
 )
+
 
 router_chain = prompt | llm_with_structured

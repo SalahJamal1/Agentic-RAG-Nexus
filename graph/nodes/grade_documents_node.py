@@ -17,7 +17,6 @@ def grade_documents_node(state:GraphState)->GraphState:
     context="\n\n".join(f"Source:{doc.metadata.get('source','')},Content:{doc.page_content}" for doc in filter_doc)
 
     return {
-        **state,
         "context":context,
         "documents":filter_doc,
     }

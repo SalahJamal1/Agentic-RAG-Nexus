@@ -25,61 +25,70 @@
 
 ---
 
-A LangGraph agent that routes each question to whichever backend can actually
-answer it — a local RAG knowledge base, a MySQL notes table, Google Drive
-PDFs, or a GitHub repo — grades what comes back, and re-generates the answer
-if it isn't grounded in the retrieved context.
+A LangGraph agent that routes each question to whichever backend(s) can
+actually answer it — a local RAG knowledge base, a MySQL notes table, Google
+Drive PDFs, and/or a GitHub repo — grades what comes back, and re-generates
+the answer if it isn't grounded in the retrieved context.
 
 ## How it works
 
-At its core, the graph is a single loop: fetch context, generate an answer,
-grade it, and retry until it's actually useful.
+The graph routes a question to one or more backends in parallel, grades and
+merges what comes back, generates an answer, and grades that answer —
+re-routing and retrying until it's grounded or a retry limit is hit.
 
 ```mermaid
 flowchart TD
     start([start]) --> route[route question]
-    route --> fetch[fetch from source]
-    fetch --> generate[generate answer]
-    generate --> grade{grade: grounded &<br/>relevant?}
+    route --> fetch["fetch from source(s)<br/>(parallel fan-out)"]
+    fetch --> grade_docs[grade documents]
+    grade_docs --> generate[generate answer]
+    generate --> grade{grounded &<br/>relevant?}
     grade -->|yes| end_([end])
-    grade -->|no, retry ≤ 3| generate
+    grade -->|not grounded| recover[recovery: re-route]
+    recover --> generate
+    grade -->|not relevant| generate
+    grade -->|3 retries reached| end_
 ```
 
-Underneath `route` and `fetch`, the graph branches across four backends:
+Underneath `route` and `fetch`, the graph branches across four backends. A
+question can be routed to several of them at once:
 
 ```mermaid
 flowchart TD
-    route{{route}} -- general --> chat[general chat]
-    route -- Rag --> rag[RAG retriever]
-    route -- Mysql --> mysql[MySQL notes]
+    route{{route}} -- general --> chat[general chat] --> end_([end])
+    route -- "Rag" --> rag[RAG retriever]
+    route -- "Mysql" --> mysql[MySQL notes]
     route -- "Google Drive" --> drive[Google Drive]
-    route -- Github --> github[GitHub repo]
+    route -- "Github" --> github[GitHub repo]
 
-    mysql -. no docs .-> drive
-    drive -. no docs .-> github
-    github -. no docs .-> rag
-    rag -. no docs .-> mysql
-
-    rag -- docs found --> next[grade docs / generate]
-    mysql -- docs found --> next
-    drive -- docs found --> next
-    github -- docs found --> next
+    rag --> next[grade docs]
+    mysql --> next
+    drive --> next
+    github --> next
 ```
 
-1. **Route** — an LLM classifies the question into `Rag`, `Mysql`,
-   `Google Drive`, `Github`, or `General`.
+1. **Route** — an LLM classifies the question into one or more of `Rag`,
+   `Mysql`, `Google Drive`, `Github`, `General`. Multiple datasources are
+   chosen when the question needs combining or comparing information across
+   sources (e.g. "compare my GitHub README with my Drive CV"), and each
+   selected source is dispatched in parallel via LangGraph `Send`.
 2. **General** questions (greetings, small talk, general knowledge) skip
-   retrieval entirely and go straight to the chat model.
-3. **Fetch** — the chosen source is queried. If it comes back with no
-   documents, `decide()` falls through to the next untried source in the
-   order `Mysql → Google Drive → Github → Rag`, so a question routed to the
-   wrong place still has a chance to find an answer.
+   retrieval entirely, get answered straight from the chat model, and end
+   immediately — no document grading or hallucination check.
+3. **Fetch** — every selected source is queried; each source's documents are
+   appended to the shared `documents` list in state.
 4. **Grade docs** — each retrieved document is scored for relevance to the
-   question; irrelevant ones are dropped.
-5. **Generate** — an answer is produced from the surviving context.
+   question; irrelevant ones are dropped and the survivors are joined into
+   `context`.
+5. **Generate** — an answer is produced from the context.
 6. **Grade (check)** — the answer is graded for hallucination (is it
-   grounded in the context?) and relevance (does it answer the question?).
-   If either check fails, generation is retried, up to 3 times.
+   grounded in the context?) and relevance (does it answer the question?):
+   - not grounded → routed to a **recovery** node, which asks an LLM to pick
+     one new datasource to re-fetch from (or to just retry generation as-is),
+     then goes back through grading to `generate` again
+   - grounded but not relevant → `generate` is retried directly
+   - both pass → `useful`, done
+   - after 3 attempts → `failed`, done regardless of grade
 
 ## Stack
 
@@ -149,3 +158,16 @@ uv run python -m graph.rag.ingestion
 >   in-process Python functions rather than over MCP; the standalone
 >   `mcp.run(transport="http", ...)` entry points in `graph/mcp/*.py`
 >   aren't currently used by the graph.
+> - `recovery_node` (`graph/nodes/recovery_node.py`) is registered as both
+>   the `RECOVERY` node and its own conditional-edge routing function,
+>   calling the recovery LLM twice per recovery pass; its node-body return
+>   value (a `Send` or the string `GENERATE`) isn't a valid state update,
+>   which raises `InvalidUpdateError`. It also reads `decision.datasource`
+>   off `RouteQuery`, which only has a `datasources` (plural) field, so it
+>   raises `AttributeError` before it can even get that far.
+> - `documents` in `GraphState` uses an `operator.add` reducer so parallel
+>   sources can fan their results into one list, but `grade_documents_node`
+>   also writes through that same key with only the filtered subset —
+>   this appends the filtered docs onto the unfiltered list rather than
+>   replacing it, so documents accumulate (and duplicate) across grading
+>   and recovery passes instead of shrinking to just the relevant ones.

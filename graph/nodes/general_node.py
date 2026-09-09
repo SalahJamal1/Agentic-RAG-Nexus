@@ -9,6 +9,5 @@ def general_node(state: GraphState):
     response = llm.invoke(question)
 
     return {
-        **state,
         "generation": response.content,
     }

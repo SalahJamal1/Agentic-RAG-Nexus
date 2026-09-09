@@ -9,16 +9,16 @@ def hallucinations_node(state:GraphState):
     generation=state["generation"]
     retry_count = state.get("retry_count",0)
     print(f"-- Hallucinations Node {retry_count}--")
-    if retry_count>3:
-        return "useful"
+    if retry_count>=3:
+        return "failed"
 
     score:GradeHallucinations=hallucinations_chain.invoke({"documents":context,"generation":generation})
     if score.binary_score is False:
-        return "not useful"
+        return "recover"
     answer_score:GradeAnswer=answer_chain.invoke({"question":question,"generation":generation})
-    if answer_score.binary_score:
-        return "useful"
-    return "not useful"
+    if not answer_score.binary_score:
+        return "regenerate"
+    return "useful"
 
 
 

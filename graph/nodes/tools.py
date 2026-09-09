@@ -9,35 +9,20 @@ from graph.state import GraphState
 
 def get_google_drive_mcp(state:GraphState):
     print(f"--{GOOGLE_DRIVE}--")
-    documents=state.get("documents",[])
-    sources = state.get("sources",[])
-    if GOOGLE_DRIVE not in sources:
-        sources.append(GOOGLE_DRIVE)
     doc=google_drive_mcp_server()
-    if doc:
-        documents.extend(doc)
-    return {**state,"documents":documents,"sources":sources}
+    return {"documents":doc or []}
 
 
 def get_github_mcp(state:GraphState):
     print(f"--{GITHUB}--")
-    documents = state.get("documents", [])
-    sources = state.get("sources",[])
-    if GITHUB not in sources:
-        sources.append(GITHUB)
+
     doc = get_github_repo()
-    if doc:
-        documents.append(Document(page_content=str(doc), metadata={"source": "github"}))
-    return {**state, "documents": documents,"sources":sources}
+    documents=[Document(page_content=str(doc), metadata={"source": "github"})]
+    return { "documents": documents}
 
 
 def get_mysql_mcp(state:GraphState):
     print(f"--{MYSQL}--")
-    sources = state.get("sources", [])
-    if MYSQL not in sources:
-        sources.append(MYSQL)
-    documents = state.get("documents", [])
     doc = fetch_notes()
 
-    documents.extend(doc)
-    return {**state, "documents": documents,"sources":sources}
+    return { "documents": doc}
